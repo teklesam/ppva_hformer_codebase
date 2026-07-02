@@ -22,6 +22,7 @@ __pycache__/
 
 # Data — Kermany chest X-ray dataset (not redistributable)
 data/
+!code/src/data/
 chest_xray/
 *.jpeg
 *.jpg
