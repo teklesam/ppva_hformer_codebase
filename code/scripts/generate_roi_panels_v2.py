@@ -2,7 +2,7 @@
 generate_roi_panels_v2.py — Publication-quality ROI figures for the 16-arm PP-VAE ablation study.
 
 Generates four figures:
-  Fig A  — Normal case,    mid-lung vascular ROI   (shows fine vessel margin preservation)
+  Fig A  — Normal case,    left hilum / perihilar ROI (shows fine vessel margin preservation)
   Fig B  — Pneumonia case, consolidation ROI        (shows pathological feature preservation)
   Fig C  — Normal case,    costophrenic angle ROI   (shows sharp pleural boundary + FFL effect)
   Fig D  — Uncertainty panel: Arm D & H with σ_a maps for both cases
@@ -56,12 +56,17 @@ FOI_SIGMA_MID = 0.141
 PANELS = [
     {
         "fig_id": "A",
-        "label": "Normal — right mid-lung vascular margins",
+        # Site A moved from the mid-lung vascular margin (was roi=(90,65,75,75),
+        # which sat a bit high and to the right) DOWN and to the LEFT onto the
+        # left hilum / perihilar pulmonary vessels, per supervisor/user request.
+        # Verify visually on CSD3 against NORMAL idx 9 and nudge if the crop
+        # misses the vascular convergence at the hilum.
+        "label": "Normal — left hilum / perihilar vessels",
         "cls": "NORMAL",
         "idx": 9,
-        "roi": (90, 65, 75, 75),
+        "roi": (62, 98, 78, 78),
         "arrow": (-14, -14),
-        "anatomy": "right mid-lung vascular margin",
+        "anatomy": "left hilum (perihilar pulmonary vessels)",
         "noise_eta": 200,
     },
     {
