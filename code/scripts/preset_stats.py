@@ -56,6 +56,7 @@ def main():
     ap.add_argument("--data", required=True, help="test dir with NORMAL/ and PNEUMONIA/ subfolders")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--alpha", type=float, default=0.05)
+    ap.add_argument("--dump", default=None, help="write tidy per-image CSV (img_idx,class,preset,psnr) for plotting")
     args = ap.parse_args()
 
     resize = T.Resize((256, 256), antialias=True)
@@ -68,6 +69,7 @@ def main():
           f"class-comparison Bonferroni alpha = {args.alpha}/{n_pairs_total} = {alpha_adj:.3e}")
 
     data = {}
+    rows = []  # tidy per-image records for optional CSV dump
     for name in ["low", "mid", "high"]:
         a, b = PRESETS[name]["a"], PRESETS[name]["b"]
         d = {c: [] for c in CLASSES}
@@ -75,8 +77,17 @@ def main():
             g = torch.Generator(); g.manual_seed(args.seed + i)
             noisy = (clean + torch.randn(clean.shape, generator=g)
                      * (a * clean.clamp(min=0.0) + b).sqrt()).clamp(0.0, 1.0)
-            d[cls].append(psnr(clean, noisy))
+            p = psnr(clean, noisy)
+            d[cls].append(p)
+            rows.append((i, cls, name, p))
         data[name] = {c: np.array(v) for c, v in d.items()}
+
+    if args.dump:
+        import csv as _csv
+        os.makedirs(os.path.dirname(args.dump) or ".", exist_ok=True)
+        with open(args.dump, "w", newline="") as fh:
+            w = _csv.writer(fh); w.writerow(["img_idx", "class", "preset", "psnr"]); w.writerows(rows)
+        print(f"wrote tidy per-image CSV -> {args.dump} ({len(rows)} rows)")
 
     print("\n== Claim 1: three well-separated severity levels ==")
     F, pF = f_oneway(*[np.concatenate([data[n][c] for c in CLASSES]) for n in ["low", "mid", "high"]])
