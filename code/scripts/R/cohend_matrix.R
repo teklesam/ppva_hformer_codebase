@@ -20,21 +20,25 @@ lab <- c(arm_a_l2="A",arm_i_l1="I",arm_j_l1_ssim_ffl="J",arm_k_nll_l1="K",arm_b_
   dncnn_baseline="DnCNN",ffdnet="FFDNet",ircnn="IRCNN",drunet="DRUNet",swinir="SwinIR")
 labs <- unname(lab[ord])
 
-df <- read_csv(csv, show_col_types = FALSE)
-m <- bind_rows(
-       transmute(df, r = arm1, c = arm2, d = cohens_d, ns = sig == "n.s."),
-       transmute(df, r = arm2, c = arm1, d = -cohens_d, ns = sig == "n.s.")) |>
-     filter(r %in% ord, c %in% ord) |>
-     mutate(r = factor(lab[r], levels = labs), c = factor(lab[c], levels = rev(labs)),
+idx <- setNames(seq_along(ord), ord)
+# keep each pair once as a lower triangle (row = later arm, col = earlier arm; d = row - col)
+m <- read_csv(csv, show_col_types = FALSE) |>
+     filter(arm1 %in% ord, arm2 %in% ord) |>
+     mutate(hi = ifelse(idx[arm1] >= idx[arm2], arm1, arm2),
+            lo = ifelse(idx[arm1] >= idx[arm2], arm2, arm1),
+            d  = ifelse(idx[arm1] >= idx[arm2], cohens_d, -cohens_d),
+            ns = sig == "n.s.",
+            row = factor(lab[hi], levels = rev(labs)),
+            col = factor(lab[lo], levels = labs),
             dcl = pmin(pmax(d, -3), 3))
 
-p <- ggplot(m, aes(r, c, fill = dcl)) +
+p <- ggplot(m, aes(col, row, fill = dcl)) +
   geom_tile(color = "white", linewidth = 0.3) +
   geom_point(data = filter(m, ns), color = "black", size = 0.7) +
   scale_fill_scico(palette = "vik", limits = c(-3, 3), name = "Cohen's d\n(row - col)") +
   coord_equal() +
   labs(x = NULL, y = NULL, title = "Pairwise effect sizes (PSNR, mid noise)",
-       caption = "dots = not significant after Bonferroni (statistically interchangeable)") +
+       caption = "lower triangle only (matrix is symmetric); dots = not significant after Bonferroni") +
   theme_minimal(base_size = 9) +
   theme(axis.text.x = element_text(angle = 90, vjust = .5, hjust = 1),
         panel.grid = element_blank(), plot.title = element_text(face = "bold", size = 10))
