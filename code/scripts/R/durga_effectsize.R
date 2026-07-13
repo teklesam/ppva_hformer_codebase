@@ -40,8 +40,18 @@ dd <- DurgaDiff(df, data.col = "psnr", group.col = "arm", effect.type = "cohens 
                 contrasts = paste(spec$m1, "-", spec$m2), R = R)
 est <- do.call(rbind, lapply(dd$group.differences,
         function(g) data.frame(d = g$t0, lo = g$bca[1, 4], hi = g$bca[1, 5])))
+
+# Welch t-test p per contrast, Bonferroni-corrected over the 210-pair family (thesis convention)
+NCOMP <- 210
+pbonf <- mapply(function(a, b) {
+  min(1, t.test(df$psnr[df$arm == a], df$psnr[df$arm == b])$p.value * NCOMP)
+}, spec$m1, spec$m2)
+stars <- ifelse(pbonf < 1e-3, "***", ifelse(pbonf < 1e-2, "**", ifelse(pbonf < 0.05, "*", "n.s.")))
+plab  <- ifelse(pbonf < 1e-3, "p<.001", sprintf("p=%.3f", pbonf))
+
 res <- bind_cols(spec, est) |>
-  mutate(mag = cut(abs(d), c(-1, .2, .5, .8, Inf),
+  mutate(p = pbonf, ptext = paste0(plab, " ", stars),
+         mag = cut(abs(d), c(-1, .2, .5, .8, Inf),
                    labels = c("negligible", "small", "moderate", "large")),
          lab = factor(lab, levels = rev(lab)))
 
@@ -50,12 +60,14 @@ p <- ggplot(res, aes(d, lab, color = mag)) +
   geom_vline(xintercept = c(-.8, -.2, .2, .8), linetype = "dashed", color = "grey75") +
   geom_errorbarh(aes(xmin = lo, xmax = hi), height = .25, linewidth = .6) +
   geom_point(size = 2.4) +
+  geom_text(aes(x = Inf, label = ptext), hjust = 1.02, size = 2.5, color = "grey25") +
   facet_grid(theme ~ ., scales = "free_y", space = "free_y", switch = "y") +
   scale_color_manual(values = c(negligible = "grey55", small = "#2ca25f",
                                 moderate = "#dd8452", large = "#c44e52"), name = "effect size") +
+  scale_x_continuous(expand = expansion(mult = c(0.03, 0.28))) +
   labs(x = "Cohen's d (Model 1 - Model 2), bootstrap 95% CI (Durga)", y = NULL,
        title = "Selected pairwise effect sizes with bootstrap confidence intervals",
-       caption = "dashed lines = |d| 0.2 (negligible) and 0.8 (large) thresholds; R = 1999 BCa bootstrap") +
+       caption = "right column: Bonferroni-corrected Welch p (over 210 pairs); *** p<.001, ** p<.01, * p<.05; dashed lines = |d| 0.2 / 0.8; R = 1999 BCa bootstrap") +
   theme_minimal(base_size = 10) +
   theme(strip.placement = "outside", strip.text.y.left = element_text(angle = 0, face = "bold", size = 8),
         plot.title = element_text(face = "bold"), panel.grid.major.y = element_blank(),
