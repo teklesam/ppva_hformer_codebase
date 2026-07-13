@@ -157,10 +157,11 @@ txt(Ox, 0.600, "cosine LR", size=9, col=INK)
 
 # ---------------- backpropagation band ----------------
 rbox(0.008, 0.045, 0.984, 0.220, fc=shade(ALE, 0.95), ec=shade(ALE,0.30), lw=1.4)
-txt(0.028, 0.238, "Backpropagation  (reverse-mode autodiff)", size=12.5, col=shade(ALE,-0.3),
+# return path: riser on the far left so it does not cross the title
+zarrow([(Ox, 0.560), (Ox, 0.205), (0.032, 0.205), (0.032, 0.300)], col=shade(ALE,-0.1), lw=2.8, mut=18)
+txt(0.086, 0.238, "Backpropagation  (reverse-mode autodiff)", size=12.5, col=shade(ALE,-0.3),
     w="bold", ha="left")
-zarrow([(Ox, 0.560), (Ox, 0.205), (0.088, 0.205), (0.088, 0.300)], col=shade(ALE,-0.1), lw=2.8, mut=18)
-txt(0.660, 0.236, "$\\nabla_\\theta\\mathcal{L}$  returned to every parameter", size=10.5,
+txt(0.665, 0.238, "$\\nabla_\\theta\\mathcal{L}$  returned to every parameter", size=10.5,
     col=shade(ALE,-0.2), w="bold", halo=True)
 
 # conv-kernel gradient glyph (sharp 3x3)
@@ -183,8 +184,7 @@ for s in aa.spines.values(): s.set_edgecolor(INK); s.set_linewidth(0.8)
 txt(axx+aw/2, axy+ah+0.020, "$8{\\times}8$ window attention", size=9.5, col=INK)
 txt(axx+aw/2, axy-0.026, "$\\partial\\mathcal{L}/\\partial\\{Q,K,V\\}$", size=10, col=shade(PURP,-0.2), w="bold")
 
-# key note
-rbox(0.590, 0.062, 0.396, 0.130, fc="white", ec=PBORD, lw=1.2, z=4)
+# key note (no box)
 txt(0.788, 0.165, "Gradients flow kernel-by-kernel, not layer-by-layer:", size=10, col=INK, w="bold")
 txt(0.788, 0.126, "the chain rule differentiates each $3{\\times}3$ convolution filter", size=9.5, col=INK)
 txt(0.788, 0.096, "and each attention projection — there are no", size=9.5, col=INK)
