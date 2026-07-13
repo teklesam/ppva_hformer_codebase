@@ -41,8 +41,11 @@ p <- ggplot(long, aes(m, Arm, colour=Family)) +
   theme_minimal(base_size=8.5) +
   theme(plot.title=element_text(face="bold"), panel.grid.major.y=element_line(linewidth=0.2, colour="grey92"),
         panel.grid.minor.x=element_blank(),
-        strip.text=element_text(face="bold"), legend.position="top",
-        axis.text.y=element_text(size=7))
+        panel.border=element_rect(colour="grey35", fill=NA, linewidth=0.5),
+        panel.spacing=unit(0.9,"lines"),
+        strip.text=element_text(face="bold", colour="grey15"),
+        strip.background=element_rect(fill="grey90", colour="grey35", linewidth=0.5),
+        legend.position="top", axis.text.y=element_text(size=7))
 dir.create(dirname(out), showWarnings=FALSE, recursive=TRUE)
 ggsave(out, p, width=12.5, height=6.4)
 cat("saved", out, "| arms:", length(unique(long$arm)), "\n")
