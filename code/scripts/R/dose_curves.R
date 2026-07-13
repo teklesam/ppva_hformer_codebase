@@ -26,7 +26,7 @@ p <- ggplot(agg, aes(noise, m, group = arm)) +
   scale_color_brewer(palette = "Set1") + scale_fill_brewer(palette = "Set1") +
   labs(x = "noise severity preset", y = "PSNR (dB)", color = "key arm", fill = "key arm",
        title = "Reconstruction quality across dose (noise) levels",
-       caption = "grey = the other 15 arms; ribbons = 95% CI of the mean") +
+       caption = "grey = the remaining arms; ribbons = 95% CI of the mean") +
   theme_minimal(base_size = 11) + theme(plot.title = element_text(face = "bold"))
 
 dir.create(dirname(out), showWarnings = FALSE, recursive = TRUE)
