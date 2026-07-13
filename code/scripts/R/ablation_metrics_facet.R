@@ -27,16 +27,20 @@ long <- long |> mutate(Arm=factor(lab[arm], levels=lab[ord]),
                        Family=factor(famv[arm], levels=c("Pixel-norm","NLL","VAE","Fine-tune","Baseline","Failure")),
                        metric=factor(mlab[metric], levels=unname(mlab[metrics])))
 
-p <- ggplot(long, aes(m, Arm, fill=Family)) +
-  geom_col(width=0.72) +
-  geom_errorbarh(aes(xmin=lo, xmax=hi), height=0.3, linewidth=0.3, colour="grey30") +
+# dot plot (not bars): each metric's x-axis auto-zooms to its data range, so the
+# small SSIM/FSIM/LPIPS differences become visible (a truncated bar axis would mislead)
+p <- ggplot(long, aes(m, Arm, colour=Family)) +
+  geom_errorbarh(aes(xmin=lo, xmax=hi), height=0.32, linewidth=0.4) +
+  geom_point(size=2.4) +
   facet_wrap(~metric, scales="free_x", nrow=1) +
-  scale_fill_manual(values=c("Pixel-norm"="#4c72b0","NLL"="#dd8452","VAE"="#8172b3",
-                             "Fine-tune"="#937860","Baseline"="#55a868","Failure"="#c44e52")) +
+  scale_colour_manual(values=c("Pixel-norm"="#4c72b0","NLL"="#dd8452","VAE"="#8172b3",
+                               "Fine-tune"="#937860","Baseline"="#55a868","Failure"="#c44e52")) +
+  scale_x_continuous(expand=expansion(mult=c(0.06,0.06))) +
   labs(x=NULL, y=NULL, title="All arms across every metric (mid noise)",
-       caption="mean +/- 95% CI (n=624); arms ordered by PSNR; higher is better, except LPIPS where lower is better") +
+       caption="mean +/- 95% CI (n=624); arms ordered by PSNR; each metric axis is zoomed to its own range; higher is better, except LPIPS where lower is better") +
   theme_minimal(base_size=8.5) +
-  theme(plot.title=element_text(face="bold"), panel.grid.major.y=element_blank(),
+  theme(plot.title=element_text(face="bold"), panel.grid.major.y=element_line(linewidth=0.2, colour="grey92"),
+        panel.grid.minor.x=element_blank(),
         strip.text=element_text(face="bold"), legend.position="top",
         axis.text.y=element_text(size=7))
 dir.create(dirname(out), showWarnings=FALSE, recursive=TRUE)
