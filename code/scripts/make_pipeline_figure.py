@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Integrated PP-VAE-Hformer pipeline figure (replaces fig_study_pipeline).
-Real CXR -> Foi degradation -> U-Net of HybridBlocks + VAE bottleneck ->
-dual uncertainty-aware outputs -> training/evaluation. Uses real image thumbnails
-and real encoder/decoder feature maps."""
+"""Integrated PP-VAE-Hformer study-pipeline figure (Fig 3.1).
+Degradation -> U-Net of HybridBlocks drawn as 3D feature volumes + VAE bottleneck
+-> uncertainty-aware outputs (epistemic branches from the VAE via MC sampling)
+-> held-out evaluation, over a compact 19-arm ablation design matrix.
+Muted, print-oriented palette consistent with the R statistical figures."""
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
+import matplotlib.colors as mc
+from matplotlib.patches import FancyBboxPatch, FancyArrowPatch, Polygon, Rectangle, Circle
 import matplotlib.image as mpimg
 import numpy as np, os, sys
 
@@ -14,174 +16,226 @@ FIGDIR = sys.argv[1] if len(sys.argv) > 1 else "."
 A = os.path.join(FIGDIR, "arch")
 OUT = sys.argv[2] if len(sys.argv) > 2 else "/tmp/fig_study_pipeline.pdf"
 
-# palette
-BLUE   = "#2563eb"; LBLUE = "#dbeafe"
-GREEN  = "#0f766e"; LGREEN = "#ccfbf1"
-AMBER  = "#b45309"; LAMBER = "#fef3c7"
-PURPLE = "#6d28d9"; LPUR  = "#ede9fe"
-GREY   = "#334155"; LGREY = "#f1f5f9"
-EDGE   = "#cbd5e1"
+# ---- muted, professional palette (seaborn-deep family; matches the R figures) ----
+INK   = "#2f2f2f"
+NET   = "#4c72b0"   # network (encoder+decoder)
+VAE   = "#dd8452"   # stochastic VAE bottleneck  ->  epistemic path
+ALE   = "#c44e52"   # aleatoric
+EVAL  = "#55a868"   # evaluation
+GREY  = "#7f7f7f"
+FAINT = "#c9c9c9"
+PANEL = "#f4f3f1"   # warm paper for panel fills
+PBORD = "#d8d5d0"
 
-fig = plt.figure(figsize=(16, 8.4))
+FW, FH = 16.0, 10.0
+ASP = FW / FH  # 1.6 : convert x-fraction depth to equal-looking y-fraction
+
+def shade(c, f):
+    r, g, b = mc.to_rgb(c)
+    if f >= 0:  return (r + (1 - r) * f, g + (1 - g) * f, b + (1 - b) * f)
+    f = -f;     return (r * (1 - f), g * (1 - f), b * (1 - f))
+
+fig = plt.figure(figsize=(FW, FH))
 ax = fig.add_axes([0, 0, 1, 1]); ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis("off")
 
 def load(name, crop_strip=False):
     im = mpimg.imread(os.path.join(A, name))
-    if crop_strip:  # clean/noisy inputs carry a thin right-hand strip
+    if crop_strip:
         im = im[8:534, 4:496]
     return im
 
-def tile(rect, name, label=None, lcol=GREY, crop=False, border=EDGE, lw=1.0, cmap=None):
-    a = fig.add_axes(rect); a.imshow(load(name, crop), cmap=("gray" if crop else cmap))
-    a.set_xticks([]); a.set_yticks([])
-    for s in a.spines.values(): s.set_edgecolor(border); s.set_linewidth(lw)
-    if label:
-        a.set_title(label, fontsize=8.0, color=lcol, pad=2.5)
-    return a
-
-def box(x, y, w, h, fc, ec, lw=1.2, r=0.014):
-    p = FancyBboxPatch((x, y), w, h, boxstyle=f"round,pad=0,rounding_size={r}",
-                       fc=fc, ec=ec, lw=lw, mutation_aspect=0.55, zorder=1)
-    ax.add_patch(p); return p
-
-def arrow(p0, p1, col=GREY, lw=1.8, style="-|>", ls="-", rad=0.0, mut=14, z=6):
-    ax.add_patch(FancyArrowPatch(p0, p1, arrowstyle=style, mutation_scale=mut,
-        lw=lw, color=col, ls=ls, shrinkA=1, shrinkB=1, zorder=z,
-        connectionstyle=f"arc3,rad={rad}"))
-
-def txt(x, y, s, size=9, col=GREY, w="normal", ha="center", va="center", style="normal"):
+def txt(x, y, s, size=9, col=INK, w="normal", ha="center", va="center", style="normal", rot=0):
     ax.text(x, y, s, fontsize=size, color=col, ha=ha, va=va, fontweight=w,
-            fontstyle=style, zorder=8)
+            fontstyle=style, rotation=rot, zorder=20)
 
-# ---- stage banners ----
-def banner(x, w, s, col, lcol):
-    box(x, 0.945, w, 0.045, lcol, col, lw=1.3)
-    txt(x + w/2, 0.9675, s, size=10.5, col=col, w="bold")
-banner(0.010, 0.140, "1 · Degradation", AMBER, LAMBER)
-banner(0.165, 0.500, "2 · PP-VAE-Hformer", BLUE, LBLUE)
-banner(0.680, 0.155, "3 · Uncertainty-aware outputs", PURPLE, LPUR)
-banner(0.845, 0.145, "4 · Held-out evaluation", GREEN, LGREEN)
+def panel(x, y, w, h, fc=PANEL, ec=PBORD, lw=1.1, r=0.012, z=0):
+    ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle=f"round,pad=0,rounding_size={r}",
+                 fc=fc, ec=ec, lw=lw, mutation_aspect=1/ASP, zorder=z))
 
-# =========================================================================
+def arrow(p0, p1, col=INK, lw=1.7, style="-|>", ls="-", rad=0.0, mut=13, z=8, sa=2, sb=2):
+    a = FancyArrowPatch(p0, p1, arrowstyle=style, mutation_scale=mut, lw=lw, color=col,
+                        ls=ls, shrinkA=sa, shrinkB=sb, zorder=z,
+                        connectionstyle=f"arc3,rad={rad}")
+    a.set_capstyle("round"); a.set_joinstyle("round"); ax.add_patch(a)
+
+def stage(x, s, col):
+    txt(x, 0.988, s.upper(), size=10, col=col, w="bold", ha="left")
+    ax.plot([x, x + 0.006], [0.976, 0.976], color=col, lw=3, solid_capstyle="round",
+            zorder=9, transform=ax.transAxes)
+
+# =====================================================================
+# stage captions (thin, no heavy banner boxes)
+# =====================================================================
+stage(0.020, "1  Degradation", VAE)
+stage(0.175, "2  PP-VAE-Hformer network", NET)
+stage(0.660, "3  Uncertainty-aware outputs", ALE)
+stage(0.870, "4  Evaluation", EVAL)
+
+# =====================================================================
 # ZONE 1 : degradation
-# =========================================================================
-box(0.010, 0.300, 0.140, 0.610, "#fffdf7", LAMBER, lw=1.4)
-tile([0.028, 0.700, 0.104, 0.150], "arch_input_clean.png", "Clean CXR (Kermany)", AMBER, crop=True)
-tile([0.028, 0.345, 0.104, 0.150], "arch_input_noisy.png", "Simulated low-dose CXR", AMBER, crop=True)
-arrow((0.058, 0.695), (0.058, 0.500), col=AMBER, lw=2.2)
-txt(0.106, 0.607, "Foi noise\n$\\mathrm{Var}{=}a\\,y{+}b$\n3 dose levels",
-    size=7.8, col=AMBER, w="bold", ha="center")
+# =====================================================================
+def framed_img(cx, cy, w, name, label, lcol, crop=True, cmap=None, ecol=INK, lw=1.1):
+    h = w * ASP
+    a = fig.add_axes([cx - w/2, cy - h/2, w, h])
+    a.imshow(load(name, crop), cmap=("gray" if crop else cmap)); a.set_xticks([]); a.set_yticks([])
+    for s in a.spines.values(): s.set_edgecolor(ecol); s.set_linewidth(lw)
+    if label: txt(cx, cy + h/2 + 0.017, label, size=8.2, col=lcol, w="bold")
+    return h
 
-# =========================================================================
-# ZONE 2 : U-Net architecture with real feature maps
-# =========================================================================
-box(0.165, 0.300, 0.500, 0.610, "#fbfdff", LBLUE, lw=1.4)
-tw, th = 0.052, 0.096
-enc = [("featmap_256.png", 0.185, 0.730, "$256^2$·64"),
-       ("featmap_128.png", 0.247, 0.620, "$128^2$·128"),
-       ("featmap_64.png",  0.309, 0.510, "$64^2$·256"),
-       ("featmap_32.png",  0.371, 0.400, "$32^2$·512")]
-dec = [("featmap_d64.png",  0.505, 0.510, "$64^2$·256"),
-       ("featmap_d128.png", 0.567, 0.620, "$128^2$·128"),
-       ("featmap_d256.png", 0.629, 0.730, "$256^2$·64")]
-def ctr(x, y): return (x + tw/2, y + th/2)
-epos, dpos = [], []
-for n, x, y, lab in enc:
-    tile([x, y, tw, th], n, None, border=BLUE, lw=1.2)
-    txt(x + tw/2, y - 0.022, lab, size=6.6, col=BLUE); epos.append((x, y))
-for n, x, y, lab in dec:
-    tile([x, y, tw, th], n, None, border=PURPLE, lw=1.2)
-    txt(x + tw/2, y - 0.022, lab, size=6.6, col=PURPLE); dpos.append((x, y))
+hc = framed_img(0.072, 0.865, 0.088, "arch_input_clean.png", "Clean CXR (Kermany)", INK, ecol=GREY)
+hn = framed_img(0.072, 0.610, 0.088, "arch_input_noisy.png", "Low-dose CXR", INK, ecol=VAE)
+arrow((0.072, 0.865 - hc/2), (0.072, 0.610 + hn/2), col=VAE, lw=2.2, mut=15)
+txt(0.128, 0.735, "Foi noise\n$\\mathrm{Var}{=}a\\,y{+}b$\n3 dose levels", size=7.6, col=VAE, w="bold")
 
-# stem arrow from noisy image into encoder
-arrow((0.134, 0.430), (0.184, ctr(*epos[0][:2])[1] - 0.01), col=GREY, lw=1.8, rad=-0.12)
-txt(0.183, 0.842, "stem $3{\\times}3$\n$\\to$64 ch", size=6.6, col=GREY)
-# encoder chain (down)
-for i in range(len(epos) - 1):
-    arrow(ctr(epos[i][0], epos[i][1]), ctr(epos[i+1][0], epos[i+1][1]), col=BLUE, lw=1.8)
+# =====================================================================
+# ZONE 2 : U-Net drawn as 3D feature volumes
+# =====================================================================
+def cuboid(cx, cy, res, ch, base=NET, face=None, cmap=None, lab=None, labcol=None):
+    """Oblique 3D feature volume; front-face size ~ spatial res, depth ~ channels."""
+    fw = 0.0165 + (res / 256.0) * 0.030
+    fh = fw * ASP
+    dx = 0.0045 + (ch / 512.0) * 0.017
+    dy = dx * ASP * 0.72
+    x, y = cx - fw/2, cy - fh/2
+    top  = shade(base, 0.42); side = shade(base, -0.18)
+    ax.add_patch(Polygon([(x, y+fh), (x+fw, y+fh), (x+fw+dx, y+fh+dy), (x+dx, y+fh+dy)],
+                 closed=True, fc=top, ec=INK, lw=0.7, zorder=4))
+    ax.add_patch(Polygon([(x+fw, y), (x+fw+dx, y+dy), (x+fw+dx, y+fh+dy), (x+fw, y+fh)],
+                 closed=True, fc=side, ec=INK, lw=0.7, zorder=4))
+    if face:
+        a = fig.add_axes([x, y, fw, fh]); a.imshow(load(face), cmap=cmap)
+        a.set_xticks([]); a.set_yticks([])
+        for s in a.spines.values(): s.set_edgecolor(INK); s.set_linewidth(0.9)
+    else:
+        ax.add_patch(Rectangle((x, y), fw, fh, fc=shade(base, 0.15), ec=INK, lw=0.9, zorder=5))
+    if lab: txt(cx, y - 0.016, lab, size=6.6, col=labcol or shade(base, -0.25))
+    return dict(cx=cx, cy=cy, x=x, y=y, fw=fw, fh=fh, dx=dx, dy=dy)
+
+enc = [(0.198, 0.855, 256, 64, "featmap_256.png", "$256^2{\\cdot}64$"),
+       (0.256, 0.770, 128, 128, "featmap_128.png", "$128^2{\\cdot}128$"),
+       (0.314, 0.688, 64, 256, "featmap_64.png",  "$64^2{\\cdot}256$"),
+       (0.372, 0.612, 32, 512, "featmap_32.png",  "$32^2{\\cdot}512$")]
+dec = [(0.474, 0.612, 64, 256, "featmap_d64.png",  "$64^2{\\cdot}256$"),
+       (0.532, 0.688, 128, 128, "featmap_d128.png", "$128^2{\\cdot}128$"),
+       (0.590, 0.770, 256, 64, "featmap_d256.png", "$256^2{\\cdot}64$")]
+E = [cuboid(x, y, r, c, base=NET, face=f, cmap="viridis", lab=l) for (x, y, r, c, f, l) in enc]
+D = [cuboid(x, y, r, c, base=NET, face=f, cmap="viridis", lab=l) for (x, y, r, c, f, l) in dec]
+
+# stem: noisy image -> first encoder block
+arrow((0.116, 0.610), (E[0]["x"] - 0.004, 0.780), col=INK, lw=1.7, rad=-0.18, sb=3)
+txt(0.176, 0.905, "stem $3{\\times}3$", size=7.0, col=GREY)
+# encoder chain
+for i in range(len(E)-1):
+    arrow((E[i]["x"]+E[i]["fw"], E[i]["cy"]-0.006), (E[i+1]["x"], E[i+1]["cy"]+0.010),
+          col=NET, lw=1.7, rad=-0.05)
 # VAE bottleneck
-vx, vy, vw, vh = 0.398, 0.352, 0.086, 0.058
-box(vx, vy, vw, vh, LBLUE, BLUE, lw=1.6)
-txt(vx + vw/2, vy + vh/2 + 0.010, "VAE bottleneck", size=7.4, col=BLUE, w="bold")
-txt(vx + vw/2, vy + vh/2 - 0.013, "$z=z_\\mu+\\varepsilon\\odot e^{\\frac{1}{2} z_{\\log\\sigma^2}}$", size=6.9, col=BLUE)
-arrow(ctr(*epos[-1]), (vx + vw/2, vy + vh), col=BLUE, lw=1.8)
-arrow((vx + vw, vy + vh/2), ctr(dpos[0][0], dpos[0][1]), col=PURPLE, lw=1.8)
-# decoder chain (up)
-for i in range(len(dpos) - 1):
-    arrow(ctr(dpos[i][0], dpos[i][1]), ctr(dpos[i+1][0], dpos[i+1][1]), col=PURPLE, lw=1.8)
-# skip connections (dashed, encoder->decoder at matching resolution, near-horizontal)
-for (ex, ey), (dx, dy) in zip(epos[:3], reversed(dpos)):
-    arrow((ex + tw, ey + th/2), (dx, dy + th/2), col="#94a3b8", lw=1.2, ls=(0, (5, 3)),
-          style="-|>", rad=-0.06, mut=9)
-txt(0.415, 0.792, "skip connections", size=7.0, col="#64748b", style="italic")
-# labels
-txt(0.255, 0.372, "Encoder  (3 downsampling stages)", size=8.4, col=BLUE, w="bold")
-txt(0.575, 0.855, "Decoder + dual head", size=8.4, col=PURPLE, w="bold")
-box(0.183, 0.306, 0.300, 0.030, "#ffffff", EDGE, lw=1.0)
-txt(0.333, 0.321, "HybridBlock $=$ WinAttn$_{8\\times8}$(ResBlock($\\cdot$))  $\\times2$/stage  ·  GroupNorm+GELU",
-    size=7.4, col=GREY)
+vx, vy, vw, vh = 0.398, 0.480, 0.092, 0.062
+panel(vx, vy, vw, vh, fc=shade(VAE, 0.72), ec=VAE, lw=1.5)
+txt(vx+vw/2, vy+vh-0.017, "VAE bottleneck", size=7.8, col=shade(VAE,-0.25), w="bold")
+txt(vx+vw/2, vy+0.021, "$z=z_\\mu+\\varepsilon\\odot e^{\\frac{1}{2}z_{\\log\\sigma^2}}$", size=7.4, col=INK)
+arrow((E[3]["cx"], E[3]["y"]), (vx+vw/2, vy+vh), col=NET, lw=1.7, rad=0.0, sb=2)
+arrow((vx+vw, vy+vh/2), (D[0]["x"], D[0]["cy"]-0.004), col=NET, lw=1.7, rad=0.0)
+# decoder chain
+for i in range(len(D)-1):
+    arrow((D[i]["x"]+D[i]["fw"], D[i]["cy"]+0.006), (D[i+1]["x"], D[i+1]["cy"]-0.010),
+          col=NET, lw=1.7, rad=0.05)
+# skip connections (matching resolution, over the top)
+for e, d in zip(E[:3], reversed(D)):
+    arrow((e["x"]+e["fw"]+e["dx"], e["y"]+e["fh"]+e["dy"]),
+          (d["x"]+d["dx"], d["y"]+d["fh"]+d["dy"]),
+          col=GREY, lw=1.1, ls=(0, (5, 3)), style="-|>", rad=-0.10, mut=9)
+txt(0.394, 0.905, "skip connections (matched resolution)", size=7.2, col=GREY, style="italic")
+txt(0.256, 0.556, "Encoder  ·  3 downsampling stages", size=8.2, col=shade(NET,-0.2), w="bold")
+txt(0.532, 0.812, "Decoder + dual head", size=8.2, col=shade(NET,-0.2), w="bold")
+# HybridBlock descriptor
+panel(0.196, 0.470, 0.192, 0.030, fc="white", ec=PBORD, lw=1.0)
+txt(0.292, 0.485, "HybridBlock $=$ WinAttn$_{8\\times8}\\!\\circ$ResBlock,  $\\times2$/stage", size=7.2, col=INK)
 
-# =========================================================================
-# ZONE 3 : outputs
-# =========================================================================
-box(0.680, 0.300, 0.155, 0.610, "#fefcff", LPUR, lw=1.4)
-oy = [0.700, 0.520, 0.340]
-onm = [("arch_output_mu.png", "Denoised mean  $\\hat\\mu_y$", PURPLE, "gray"),
-       ("arch_output_aleat.png", "Aleatoric  $\\hat\\sigma^2_a$  (NLL)", PURPLE, "magma"),
-       ("arch_output_epist.png", "Epistemic  $\\hat\\sigma^2_e$  ($K{=}20$ MC)", PURPLE, "magma")]
-for (n, lab, c, cm), y in zip(onm, oy):
-    tile([0.705, y, 0.105, 0.150], n, lab, c, border=PURPLE, lw=1.2, cmap=cm)
-txt(0.7575, 0.318, "per-pixel mean $+$ trust map", size=7.6, col=PURPLE, w="bold")
+# =====================================================================
+# ZONE 3 : outputs -- mean & aleatoric from the head; epistemic from the VAE
+# =====================================================================
+mu_cy, al_cy, ep_cy = 0.860, 0.700, 0.520
+ow = 0.088
+# dual head split node after last decoder block
+hx, hy = D[2]["x"] + D[2]["fw"] + 0.018, D[2]["cy"]
+txt(hx + 0.004, hy + 0.052, "dual\n$3{\\times}3$ head", size=6.8, col=shade(NET,-0.2))
+framed_img(0.712, mu_cy, ow, "arch_output_mu.png",   "Denoised mean $\\hat\\mu_y$", INK, crop=False, cmap="gray", ecol=INK)
+framed_img(0.712, al_cy, ow, "arch_output_aleat.png","Aleatoric $\\hat\\sigma^2_a$  (NLL head)", ALE, crop=False, ecol=ALE)
+framed_img(0.712, ep_cy, ow, "arch_output_epist.png","Epistemic $\\hat\\sigma^2_e$  (VAE, $K{=}20$ MC)", VAE, crop=False, ecol=VAE)
+# head -> mean & aleatoric
+arrow((D[2]["x"]+D[2]["fw"]+D[2]["dx"], D[2]["cy"]+D[2]["fh"]/2), (0.712-ow/2, mu_cy-0.01),
+      col=NET, lw=1.8, rad=-0.08)
+arrow((hx+0.02, hy-0.01), (0.712-ow/2, al_cy+0.02), col=ALE, lw=1.8, rad=-0.10)
+# VAE -> epistemic (the point: epistemic originates from stochastic VAE sampling)
+arrow((vx+vw/2, vy), (0.712-ow/2, ep_cy), col=VAE, lw=2.0, rad=-0.34, mut=15)
+txt(0.560, 0.455, "$K{=}20$ stochastic $z$ samples", size=7.4, col=shade(VAE,-0.2), w="bold", style="italic")
 
-# connect decoder head -> outputs
-arrow((0.629 + tw, 0.730 + th/2), (0.705, 0.800), col=PURPLE, lw=2.0, rad=-0.1)
+# =====================================================================
+# ZONE 4 : evaluation
+# =====================================================================
+panel(0.868, 0.500, 0.126, 0.40, fc="white", ec=shade(EVAL,0.4), lw=1.3)
+txt(0.931, 0.868, "624 held-out CXRs", size=8.4, col=shade(EVAL,-0.15), w="bold")
+ev = [("Reconstruction", "PSNR·SSIM·FSIM·LPIPS"),
+      ("Calibration", "reliability + $\\sigma$-scaling"),
+      ("Fairness", "Normal/Bacterial/Viral")]
+yy = 0.800
+for head, body in ev:
+    txt(0.876, yy, head, size=7.9, col=shade(EVAL,-0.2), w="bold", ha="left")
+    txt(0.876, yy-0.033, body, size=7.3, col=INK, ha="left"); yy -= 0.093
+arrow((0.806, 0.700), (0.868, 0.700), col=EVAL, lw=1.9, mut=15)
 
-# =========================================================================
-# ZONE 4 : evaluation (right column)
-# =========================================================================
-box(0.845, 0.300, 0.145, 0.610, "#f7fefb", LGREEN, lw=1.4)
-txt(0.9175, 0.865, "624 held-out CXRs", size=8.6, col=GREEN, w="bold")
-ev = ["Reconstruction:", "  PSNR · SSIM · FSIM · LPIPS", "", "Uncertainty calibration:",
-      "  reliability + $\\sigma$-scaling", "", "Subgroup fairness:",
-      "  Normal / Bacterial / Viral"]
-yy = 0.80
-for line in ev:
-    b = line.endswith(":")
-    txt(0.853, yy, line, size=7.8, col=GREEN if b else GREY, w="bold" if b else "normal", ha="left")
-    yy -= 0.045
-arrow((0.835, 0.605), (0.845, 0.605), col=GREEN, lw=2.0)
+# =====================================================================
+# BOTTOM : objective/baselines strip + 19-arm ablation design matrix (creative Fig 3.7)
+# =====================================================================
+panel(0.014, 0.028, 0.972, 0.395, fc=PANEL, ec=PBORD, lw=1.2)
+txt(0.030, 0.392, "Training objective", size=8.6, col=INK, w="bold", ha="left")
+txt(0.030, 0.360, "$\\mathcal{L}=\\mathrm{NLL}+\\lambda_S\\mathrm{SSIM}+\\lambda_F\\mathrm{FFL}+\\beta(t)\\,\\mathrm{KL}$  (cyclic anneal)",
+    size=8.6, col=INK, ha="left")
+txt(0.030, 0.332, "AdamW · cosine LR · 200 epochs", size=7.4, col=GREY, ha="left")
+txt(0.660, 0.392, "Benchmarked against", size=8.6, col=INK, w="bold", ha="left")
+txt(0.660, 0.360, "KAIR: DnCNN·IRCNN·FFDNet·DRUNet·SwinIR", size=7.9, col=INK, ha="left")
+txt(0.660, 0.334, "SOTA: NAFNet·SCUNet   ·   classical: BM3D", size=7.9, col=INK, ha="left")
 
-# =========================================================================
-# BOTTOM BAND : training / what was tested
-# =========================================================================
-box(0.010, 0.035, 0.980, 0.225, LGREY, EDGE, lw=1.3)
-txt(0.500, 0.238, "Training objective  &  ablation design", size=10.0, col=GREY, w="bold")
-# loss box
-box(0.024, 0.055, 0.300, 0.155, "#ffffff", BLUE, lw=1.3)
-txt(0.174, 0.192, "Composite objective", size=9.0, col=BLUE, w="bold")
-txt(0.174, 0.150, "$\\mathcal{L}=\\mathrm{NLL}+\\lambda_S\\,\\mathrm{SSIM}+\\lambda_F\\,\\mathrm{FFL}$", size=9.2, col=GREY)
-txt(0.174, 0.115, "$+\\;\\beta(t)\\,\\mathrm{KL}$   (cyclic anneal)", size=9.2, col=GREY)
-txt(0.174, 0.075, "AdamW · cosine LR · 200 epochs", size=7.6, col="#64748b")
-# ablation box
-box(0.348, 0.055, 0.304, 0.155, "#ffffff", AMBER, lw=1.3)
-txt(0.500, 0.192, "19-arm ablation  (one factor at a time)", size=9.0, col=AMBER, w="bold")
-for i, line in enumerate(["A–E  core cumulative (NLL→SSIM→FFL→VAE)",
-                          "F–H  KL schedule    ·   I–K  pixel norm",
-                          "L–N  structural reg  ·   O–P  activation",
-                          "Q  Charbonnier   ·   R–S  two-stage fine-tune"]):
-    txt(0.360, 0.163 - i*0.030, line, size=7.8, col=GREY, ha="left")
-txt(0.500, 0.062, "factorial design detailed in Fig.~3.7 (UpSet)", size=7.2, col=AMBER, style="italic")
-# baselines box
-box(0.676, 0.055, 0.300, 0.155, "#ffffff", GREEN, lw=1.3)
-txt(0.826, 0.192, "Benchmarked against", size=9.0, col=GREEN, w="bold")
-txt(0.826, 0.150, "KAIR: DnCNN · IRCNN · FFDNet", size=8.2, col=GREY)
-txt(0.826, 0.120, "DRUNet · SwinIR", size=8.2, col=GREY)
-txt(0.826, 0.088, "SOTA: NAFNet · SCUNet · BM3D", size=8.2, col=GREY)
+# --- ablation dot-matrix ---
+arms = list("ABCDEFGHIJKLMNOP") + ["Q", "R", "S"]
+rows = ["MSE", "L1", "Charb", "NLL", "SSIM", "FFL", "Edge", "Perc", "VAE/KL", "PReLU"]
+active = {
+ "MSE": set("A"), "L1": set("IJKR"), "Charb": set("Q"),
+ "NLL": set("BCDEFGHKLMNOPS"), "SSIM": set("CDEFGHJMNOPRS"),
+ "FFL": set("DEFGHJLMNOPRS"), "Edge": set("LMP"), "Perc": set("N"),
+ "VAE/KL": set("EFGHP"), "PReLU": set("OP")}
+rowcol = {"MSE": GREY, "L1": GREY, "Charb": GREY, "NLL": NET, "SSIM": NET, "FFL": NET,
+          "Edge": NET, "Perc": NET, "VAE/KL": VAE, "PReLU": ALE}
+mx0, mx1 = 0.120, 0.640
+my1, my0 = 0.300, 0.058
+cxs = np.linspace(mx0, mx1, len(arms))
+rys = np.linspace(my1, my0, len(rows))
+txt((mx0+mx1)/2, 0.392, "19-arm ablation  ·  one factor at a time", size=8.6, col=INK, w="bold")
+txt((mx0+mx1)/2, 0.366, "(full term-intersection view: Fig.~3.7 UpSet)", size=7.2, col=GREY, style="italic")
+rr = (cxs[1]-cxs[0]) * 0.30
+for r, ry in zip(rows, rys):
+    txt(mx0 - 0.016, ry, r, size=7.0, col=rowcol[r], w="bold", ha="right")
+    on_x = [cx for a, cx in zip(arms, cxs) if a in active[r]]
+    off_x = [cx for a, cx in zip(arms, cxs) if a not in active[r]]
+    ax.scatter(off_x, [ry]*len(off_x), s=26, marker="o", facecolors="white",
+               edgecolors=FAINT, linewidths=0.8, zorder=6)
+    ax.scatter(on_x, [ry]*len(on_x), s=30, marker="o", facecolors=rowcol[r],
+               edgecolors=shade(rowcol[r], -0.2), linewidths=0.6, zorder=7)
+# arm labels + group brackets
+grp = [("A", "E", "core"), ("F", "H", "KL"), ("I", "K", "pixel"),
+       ("L", "N", "struct"), ("O", "P", "act"), ("Q", "Q", "Charb"), ("R", "S", "FT")]
+for a, cx in zip(arms, cxs):
+    txt(cx, my1 + 0.024, a, size=6.8, col=INK, w="bold")
+ai = {a: i for i, a in enumerate(arms)}
+for g0, g1, gl in grp:
+    x0, x1 = cxs[ai[g0]], cxs[ai[g1]]
+    ax.plot([x0-rr, x1+rr], [my0-0.020, my0-0.020], color=GREY, lw=1.0,
+            solid_capstyle="round", zorder=6)
+    txt((x0+x1)/2, my0-0.036, gl, size=6.6, col=GREY)
 
-# flow arrows between top zones (subtle, at banner level handled by inter-box arrows)
-for x0, x1 in [(0.150, 0.165), (0.665, 0.680)]:
-    arrow((x0, 0.605), (x1, 0.605), col="#94a3b8", lw=2.0, mut=16)
+# equalise circle aspect (Circle in fraction coords needs aspect fix): draw as ellipses instead
+# (handled visually; ASP≈1.6 keeps them near-round at this scale)
 
-fig.savefig(OUT, dpi=200, bbox_inches=None)
+fig.savefig(OUT, dpi=200)
 fig.savefig(OUT.replace(".pdf", ".png"), dpi=150)
 print("saved", OUT)
