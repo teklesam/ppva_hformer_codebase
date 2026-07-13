@@ -2,7 +2,7 @@
 # training_convergence.R -- per-arm training loss + validation PSNR, faceted metric x family.
 # Shows the well-trained arms plateau (converged) while failure arms visibly break.
 # Deps: readr, dplyr, tidyr, ggplot2, purrr
-suppressMessages({library(readr);library(dplyr);library(tidyr);library(ggplot2);library(purrr)})
+suppressMessages({library(readr);library(dplyr);library(tidyr);library(ggplot2);library(purrr);library(ggrepel)})
 args <- commandArgs(trailingOnly=TRUE)
 getarg <- function(f,d=NULL){i<-match(f,args); if(is.na(i)) d else args[i+1]}
 base <- getarg("--logs","/tmp/csd3_pull/trainlogs")
@@ -37,10 +37,13 @@ L$metric <- factor(L$metric, levels=c("Training loss (per-arm normalised)","Vali
 ends <- L %>% group_by(arm,metric) %>% slice_max(epoch,n=1,with_ties=FALSE) %>% ungroup()
 
 p <- ggplot(L, aes(epoch,y,color=lab,group=arm)) +
-  geom_line(linewidth=0.5, alpha=0.9) +
-  geom_text(data=ends, aes(label=lab), size=2.2, hjust=-0.15, show.legend=FALSE) +
+  geom_line(linewidth=0.55, alpha=0.9) +
+  ggrepel::geom_text_repel(data=ends, aes(label=lab), size=2.4, fontface="bold",
+    direction="y", hjust=0, nudge_x=6, segment.size=0.25, segment.alpha=0.5,
+    min.segment.length=0, box.padding=0.12, point.padding=0.1, max.overlaps=Inf,
+    seed=1, show.legend=FALSE) +
   facet_grid(metric~family, scales="free_y", switch="y") +
-  scale_x_continuous(expand=expansion(mult=c(0.02,0.13))) +
+  scale_x_continuous(expand=expansion(mult=c(0.02,0.22))) +
   labs(x="epoch", y=NULL, title="Training convergence by loss / architecture family",
        caption="Per-arm curves; validation sampled every 5 epochs. Well-trained arms plateau (converged); Arm E (VAE posterior collapse) settles to a low ceiling and Arm O (PReLU) diverges.") +
   guides(color="none") +
