@@ -45,6 +45,7 @@ _, ssim_map = ssim(y, mu, data_range=1.0, full=True)
 Fy  = np.log1p(np.abs(np.fft.fftshift(np.fft.fft2(y))))
 edge = np.hypot(ndimage.sobel(y, 0), ndimage.sobel(y, 1))
 perc = gimg(os.path.join(A, "featmap_128.png"))
+aleat = mpimg.imread(os.path.join(A, "arch_output_aleat.png"))[..., :3]  # real model sigma^2_a map
 
 fig = plt.figure(figsize=(FW, FH))
 ax = fig.add_axes([0, 0, 1, 1]); ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.axis("off")
@@ -96,8 +97,8 @@ txt(ix, 0.775 + iw*ASP/2 + 0.026, "reconstruction $\\hat\\mu_y$", size=9.5, col=
 txt(ix, 0.682, "$-$", size=22, col=WINE, w="bold")
 tile(ix, 0.588, iw, y, "gray", SLATE)
 txt(ix, 0.588 - iw*ASP/2 - 0.024, "reference $y$ (ground truth)", size=9, col=shade(SLATE,-0.2), w="bold")
-tile(ix, 0.398, iw, sig2, "cividis", TEAL)
-txt(ix, 0.398 - iw*ASP/2 - 0.024, "aleatoric var. $\\hat\\sigma^2_a$", size=9, col=shade(TEAL,-0.2), w="bold")
+tile(ix, 0.398, iw, aleat, None, TEAL)
+txt(ix, 0.398 - iw*ASP/2 - 0.024, "aleatoric var. $\\hat\\sigma^2_a$ (model output)", size=8.5, col=shade(TEAL,-0.2), w="bold")
 arrow((0.126, 0.588), (0.180, 0.588), col=GREY, lw=2.0, mut=15)
 
 # ---------------- loss cards (centred in the panel) ----------------
