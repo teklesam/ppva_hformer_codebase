@@ -19,12 +19,18 @@ mk <- function(yvar, ylab, better){
     data=d, x=class, y=!!rlang::sym(yvar), grouping.var=model,
     type="parametric", pairwise.comparisons=TRUE, pairwise.display="significant",
     p.adjust.method="bonferroni", centrality.plotting=TRUE,
-    point.args=list(alpha=0.18, size=1, position=position_jitterdodge(dodge.width=0.6)),
+    point.args=list(alpha=0.14, size=0.8, position=position_jitterdodge(dodge.width=0.6)),
     violin.args=list(width=0.6, alpha=0.25),
+    centrality.label.args=list(size=2.6, nudge_x=0.28, segment.linetype=4),
+    ggsignif.args=list(textsize=2.4, tip_length=0.01, na.rm=TRUE),
     ggtheme=theme_minimal(base_size=10),
     ggplot.component=list(scale_colour_manual(values=pal),
-                          labs(y=paste0(ylab," (",better,")"), x=NULL)),
-    plotgrid.args=list(nrow=1),
+                          labs(y=paste0(ylab," (",better,")"), x=NULL),
+                          theme(plot.subtitle=element_text(size=7.2),
+                                plot.title=element_text(size=9, face="bold"),
+                                axis.title.y=element_text(size=9), axis.text=element_text(size=8),
+                                plot.margin=margin(6, 6, 4, 6))),
+    plotgrid.args=list(nrow=2),
     annotation.args=list(title=paste0("Reconstruction ", ylab,
        " by diagnostic class, five representative models (mid noise, Foi)"),
        caption="Welch ANOVA per model; Games-Howell pairwise, Bonferroni-adjusted. Boxes = median/IQR; diamonds = mean.")
@@ -32,7 +38,7 @@ mk <- function(yvar, ylab, better){
 }
 
 p_psnr  <- mk("psnr",  "PSNR (dB)", "higher is better")
-ggsave(file.path(outdir,"subgroup_psnr_ggstats.pdf"),  p_psnr,  width=17.5, height=6.6)
+ggsave(file.path(outdir,"subgroup_psnr_ggstats.pdf"),  p_psnr,  width=13.5, height=10.5)
 p_lpips <- mk("lpips", "LPIPS",     "lower is better")
-ggsave(file.path(outdir,"subgroup_lpips_ggstats.pdf"), p_lpips, width=17.5, height=6.6)
+ggsave(file.path(outdir,"subgroup_lpips_ggstats.pdf"), p_lpips, width=13.5, height=10.5)
 cat("saved subgroup_psnr_ggstats.pdf and subgroup_lpips_ggstats.pdf\n")
