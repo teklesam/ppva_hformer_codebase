@@ -55,7 +55,7 @@ p_surf <- ggplot(agg, aes(lambda_ssim, lambda_ffl)) +
   theme(panel.border=element_rect(colour="grey65", fill=NA, linewidth=0.5),
         panel.grid.minor=element_blank(), plot.subtitle=element_text(size=8.5))
 
-p <- p_marg / p_surf + plot_layout(heights=c(1, 1.05))
+p <- p_marg / p_surf + plot_layout(heights=c(1.75, 1))
 dir.create(dirname(out), showWarnings=FALSE, recursive=TRUE)
-ggsave(out, p, width=9.0, height=9.4)
+ggsave(out, p, width=9.0, height=11.2)
 cat("saved", out, "\n")
