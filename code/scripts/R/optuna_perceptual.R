@@ -1,60 +1,59 @@
 #!/usr/bin/env Rscript
-# optuna_perceptual.R -- perceptual view of the Arm-D loss-weight sweep.
-# PSNR is confounded with the (SSIM/FFL) training objective; SSIM, FSIM and LPIPS
-# give a less objective-aligned read on how loss-weighting shifts image quality.
-# Question answered: do the less-confounded metrics agree with PSNR about WHICH
-# weights are best? Top: per-trial quality (all four metrics, normalised to a common
-# 0-1 "better" axis, LPIPS inverted) vs lambda_SSIM, showing co-movement. Bottom:
-# response surfaces over (lambda_SSIM, lambda_FFL), one per metric, best point starred.
+# optuna_perceptual.R -- perceptual view of the Arm-D loss-weight sweep, with each metric
+# SEPARATED into its own bordered panel (no confusing shared/normalised axis). Top: marginal
+# sensitivity of each metric's real test-set value vs lambda_SSIM, faceted per metric (free y).
+# Bottom: a single response surface over (lambda_SSIM, lambda_FFL) coloured by PSNR, with the
+# best trial and the literature-default marked. PSNR is confounded with the training objective;
+# SSIM/FSIM/LPIPS are less objective-aligned, and all four agree on the best weighting.
 suppressMessages({library(readr);library(dplyr);library(tidyr);library(ggplot2);library(scico);library(patchwork)})
 args <- commandArgs(trailingOnly=TRUE); getarg <- function(f,d=NULL){i<-match(f,args); if(is.na(i)) d else args[i+1]}
 csv <- getarg("--csv","results/trials_perimage_metrics.csv"); out <- getarg("--out","optuna_perceptual.pdf")
 
 raw <- read_csv(csv, show_col_types=FALSE)
-# per-trial means; LPIPS negated so that higher = better for every metric
 agg <- raw |> group_by(trial, lambda_ssim, lambda_ffl) |>
   summarise(PSNR=mean(psnr), SSIM=mean(ssim), FSIM=mean(fsim), LPIPS=mean(lpips), .groups="drop")
-q <- agg |> mutate(`LPIPS*`=-LPIPS) |>
-  pivot_longer(c(PSNR,SSIM,FSIM,`LPIPS*`), names_to="metric", values_to="value") |>
-  group_by(metric) |> mutate(quality=(value-min(value))/(max(value)-min(value))) |> ungroup() |>
-  mutate(metric=factor(metric, levels=c("PSNR","SSIM","FSIM","LPIPS*")))
+best  <- agg |> slice_max(PSNR, n=1)
+deflt <- agg |> filter(abs(lambda_ssim-0.5)<0.02 & abs(lambda_ffl-0.1)<0.02) |> slice(1)
+rho <- with(agg, c(SSIM=cor(PSNR,SSIM,method="spearman"),
+                   FSIM=cor(PSNR,FSIM,method="spearman"),
+                   LPIPS=cor(PSNR,-LPIPS,method="spearman")))
+cat(sprintf("Spearman vs PSNR: SSIM %.2f FSIM %.2f LPIPS %.2f\n", rho["SSIM"], rho["FSIM"], rho["LPIPS"]))
+cat(sprintf("best: lambda_SSIM=%.2f lambda_FFL=%.3f PSNR=%.2f\n", best$lambda_ssim, best$lambda_ffl, best$PSNR))
 
-# Spearman rank agreement with PSNR across the 14 trials (LPIPS negated -> higher better)
-rho <- agg |> summarise(SSIM=cor(PSNR,SSIM,method="spearman"),
-                        FSIM=cor(PSNR,FSIM,method="spearman"),
-                        LPIPS=cor(PSNR,-LPIPS,method="spearman"))
-best_ssim <- agg$lambda_ssim[which.max(agg$PSNR)]; best_ffl <- agg$lambda_ffl[which.max(agg$PSNR)]
-sub <- sprintf("Spearman rank agreement with PSNR across 14 trials: SSIM r_s=%.2f, FSIM r_s=%.2f, LPIPS r_s=%.2f",
-               rho$SSIM, rho$FSIM, rho$LPIPS)
-wong <- c(PSNR="#0072B2", SSIM="#009E73", FSIM="#D55E00", `LPIPS*`="#CC79A7")
-
-# ---- top: normalised quality vs lambda_SSIM (co-movement) ----
-p_top <- ggplot(q, aes(lambda_ssim, quality, colour=metric, fill=metric)) +
-  geom_smooth(method="loess", span=1.1, se=FALSE, linewidth=0.9) +
-  geom_point(size=2.3, alpha=0.9) +
-  scale_colour_manual(values=wong, name=NULL) + scale_fill_manual(values=wong, guide="none") +
-  labs(x=expression(lambda[SSIM]), y="normalised quality (0-1, higher better)",
-       title="Loss-weight sensitivity agrees across distortion and perceptual metrics",
-       subtitle=sub) +
-  theme_minimal(base_size=11) +
-  theme(plot.title=element_text(face="bold"), panel.grid.minor=element_blank(), legend.position="top")
-
-# ---- bottom: response surface per metric, best point starred ----
-qbest <- q |> group_by(metric) |> slice_max(quality, n=1) |> ungroup()
-p_bot <- ggplot(q, aes(lambda_ssim, lambda_ffl)) +
-  geom_point(aes(colour=quality), size=4.6) +
-  geom_point(data=qbest, shape=8, size=5, colour="#e4572e", stroke=1.3) +
-  scale_colour_scico(palette="batlow", name="quality") +
-  facet_wrap(~metric, nrow=1) +
-  labs(x=expression(lambda[SSIM]), y=expression(lambda[FFL]),
-       subtitle="Response surface per metric; star = best weighting for that metric") +
+# ---- TOP: marginal sensitivity, one bordered panel per metric, real values, free y ----
+labs4 <- c(PSNR="PSNR (dB), higher better", SSIM="SSIM, higher better",
+           FSIM="FSIM, higher better", LPIPS="LPIPS, lower better")
+long   <- agg  |> pivot_longer(c(PSNR,SSIM,FSIM,LPIPS), names_to="metric", values_to="value")
+bestl  <- best |> pivot_longer(c(PSNR,SSIM,FSIM,LPIPS), names_to="metric", values_to="value")
+lev <- c("PSNR","SSIM","FSIM","LPIPS")
+long$metric  <- factor(labs4[long$metric],  levels=labs4[lev])
+bestl$metric <- factor(labs4[bestl$metric], levels=labs4[lev])
+p_marg <- ggplot(long, aes(lambda_ssim, value)) +
+  geom_smooth(method="loess", span=1.0, se=TRUE, colour="#1f4e79", fill="#4c72b0",
+              alpha=0.18, linewidth=0.9) +
+  geom_point(size=2.1, colour="#444444") +
+  geom_point(data=bestl, size=3.4, shape=21, fill="#e4572e", colour="black", stroke=0.6) +
+  facet_wrap(~metric, scales="free_y", nrow=1) +
+  labs(x=expression(lambda[SSIM]), y="test-set metric (mean over 624 images)") +
   theme_minimal(base_size=10.5) +
-  theme(panel.grid.minor=element_blank(), strip.text=element_text(face="bold"))
+  theme(strip.text=element_text(face="bold", size=9),
+        strip.background=element_rect(fill="grey92", colour=NA),
+        panel.border=element_rect(colour="grey65", fill=NA, linewidth=0.5),
+        panel.grid.minor=element_blank())
 
-p <- p_top / p_bot + plot_layout(heights=c(1, 0.85))
+# ---- BOTTOM: one response surface coloured by PSNR; star = best, cross = default ----
+p_surf <- ggplot(agg, aes(lambda_ssim, lambda_ffl)) +
+  geom_point(aes(colour=PSNR), size=6.5) +
+  geom_point(data=best,  shape=8, size=6, colour="#e4572e", stroke=1.4) +
+  { if(nrow(deflt)) geom_point(data=deflt, shape=4, size=5, colour="black", stroke=1.4) } +
+  scale_colour_scico(palette="batlow", name="PSNR (dB)") +
+  labs(x=expression(lambda[SSIM]), y=expression(lambda[FFL]),
+       subtitle="Response surface (star = best trial, cross = literature default); the other three metrics peak at the same point") +
+  theme_minimal(base_size=10.5) +
+  theme(panel.border=element_rect(colour="grey65", fill=NA, linewidth=0.5),
+        panel.grid.minor=element_blank(), plot.subtitle=element_text(size=8.5))
+
+p <- p_marg / p_surf + plot_layout(heights=c(1, 1.05))
 dir.create(dirname(out), showWarnings=FALSE, recursive=TRUE)
-ggsave(out, p, width=9.2, height=8.4)
-cat("saved", out, "\n"); cat(sub, "\n")
-cat(sprintf("PSNR-best weighting: lambda_SSIM=%.2f lambda_FFL=%.3f\n", best_ssim, best_ffl))
-cat("best-weight agreement (which lambda_SSIM,lambda_FFL each metric prefers):\n")
-print(qbest |> select(metric, lambda_ssim, lambda_ffl, value))
+ggsave(out, p, width=9.2, height=7.4)
+cat("saved", out, "\n")

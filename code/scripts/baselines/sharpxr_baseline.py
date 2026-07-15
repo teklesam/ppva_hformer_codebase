@@ -74,7 +74,7 @@ class DualDecoderHybrid(nn.Module):
             x = layer(x); skips.append(x); x = self.pool(x)
         x = self.bottleneck(x); skips = skips[::-1]
         d = self.decoder_denoise(x, skips); e = self.decoder_edge(x, skips, laplacian=True)
-        return self.final_out(self.learnable_fusion(d, e))
+        return torch.sigmoid(self.final_out(self.learnable_fusion(d, e)))  # bound to [0,1] so RMSE gradients flow
 
 # ---------------------------------------------------------------- data + Foi noise (ours)
 def load_img(p): return (np.array(Image.open(p).convert("L").resize((256,256)))/255.0).astype(np.float32)
@@ -88,12 +88,14 @@ def rmse(pred, tgt): return torch.sqrt(F.mse_loss(pred, tgt))
 
 def train():
     files = list_split("train"); random.Random(0).shuffle(files)
+    SMOKE = os.environ.get("SHARPXR_SMOKE")
+    if SMOKE: files = files[:64]
     nval = max(1, int(0.1*len(files))); val_files, tr_files = files[:nval], files[nval:]
     print(f"train {len(tr_files)} val {len(val_files)}", flush=True)
     model = DualDecoderHybrid().to(DEVICE)
     opt = torch.optim.Adam(model.parameters(), lr=1e-4)
     clean_val = [load_img(p) for p in val_files]
-    best, bad, BATCH, EPOCHS = -1, 0, 8, 90
+    best, bad, BATCH, EPOCHS = -1, 0, 8, (4 if os.environ.get("SHARPXR_SMOKE") else 90)
     for ep in range(EPOCHS):
         model.train(); random.shuffle(tr_files); rng = np.random.default_rng(ep); tot = 0.0; nb = 0
         for i in range(0, len(tr_files), BATCH):
@@ -102,7 +104,7 @@ def train():
                 c = load_img(p); _, a, b = random.choice(PRESETS)
                 cs.append(c); ns.append(add_noise(c, a, b, rng))
             x = torch.tensor(np.stack(ns))[:, None].to(DEVICE); y = torch.tensor(np.stack(cs))[:, None].to(DEVICE)
-            opt.zero_grad(); out = model(x).clamp(0,1); loss = rmse(out, y); loss.backward(); opt.step()
+            opt.zero_grad(); out = model(x); loss = rmse(out, y); loss.backward(); opt.step()  # no clamp: sigmoid already bounds output
             tot += loss.item(); nb += 1
         # val PSNR at mid noise
         model.eval(); vr = np.random.default_rng(123); ps = []
