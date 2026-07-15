@@ -173,16 +173,19 @@ txt(0.545, 0.372, "$K{=}20$ MC samples of $z$", size=7.4, col=shade(VAE,-0.2), w
 # =====================================================================
 # PHASE 4 : evaluation
 # =====================================================================
-txt(0.913, 0.815, "624 held-out CXRs", size=8.4, col=shade(EVAL,-0.2), w="bold")
+xcE = (0.836 + 0.990) / 2   # centre of the evaluation panel
+txt(xcE, 0.828, "624 held-out CXRs", size=8.2, col=shade(EVAL,-0.2), w="bold")
 ev = [("Reconstruction", "PSNR · SSIM", "FSIM · LPIPS"),
       ("Calibration", "reliability +", "$\\sigma$-scaling"),
+      ("Loss-weight sensitivity", "Optuna $\\lambda$ sweep", "distortion + perceptual"),
       ("Subgroup fairness", "Normal / Bacterial", "/ Viral")]
-yy = 0.720
+yy = 0.735
 for head, l1, l2 in ev:
-    txt(0.848, yy, head, size=7.9, col=shade(EVAL,-0.25), w="bold", ha="left")
-    txt(0.848, yy-0.035, l1, size=7.2, col=INK, ha="left")
-    txt(0.848, yy-0.065, l2, size=7.2, col=INK, ha="left"); yy -= 0.135
-arrow((0.826, 0.560), (0.858, 0.560), col=EVAL, lw=1.9, mut=14)
+    txt(xcE, yy, head, size=7.5, col=shade(EVAL,-0.25), w="bold")
+    txt(xcE, yy-0.032, l1, size=6.9, col=INK)
+    txt(xcE, yy-0.058, l2, size=6.9, col=INK); yy -= 0.112
+# flow arrow from Phase 3 into the evaluation panel; stops at the border, clear of the centred text
+arrow((0.820, 0.560), (0.840, 0.560), col=EVAL, lw=1.9, mut=14)
 
 # =====================================================================
 # FOOTER : objective + baselines
