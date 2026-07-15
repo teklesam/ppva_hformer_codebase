@@ -7,7 +7,8 @@ RMSE loss. Evaluated on the same 624-image test set as every other baseline.
 import os, sys, glob, math, csv, random, numpy as np, torch
 import torch.nn as nn, torch.nn.functional as F
 import torchvision.transforms.functional as TF
-from PIL import Image
+from PIL import Image, ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True  # one Kermany JPEG is truncated
 import piq
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
