@@ -20,24 +20,26 @@ rho <- with(agg, c(SSIM=cor(PSNR,SSIM,method="spearman"),
 cat(sprintf("Spearman vs PSNR: SSIM %.2f FSIM %.2f LPIPS %.2f\n", rho["SSIM"], rho["FSIM"], rho["LPIPS"]))
 cat(sprintf("best: lambda_SSIM=%.2f lambda_FFL=%.3f PSNR=%.2f\n", best$lambda_ssim, best$lambda_ffl, best$PSNR))
 
-# ---- TOP: marginal sensitivity, one bordered panel per metric, real values, free y ----
-labs4 <- c(PSNR="PSNR (dB), higher better", SSIM="SSIM, higher better",
-           FSIM="FSIM, higher better", LPIPS="LPIPS, lower better")
-long   <- agg  |> pivot_longer(c(PSNR,SSIM,FSIM,LPIPS), names_to="metric", values_to="value")
-bestl  <- best |> pivot_longer(c(PSNR,SSIM,FSIM,LPIPS), names_to="metric", values_to="value")
+# ---- TOP: marginal sensitivity of each metric to BOTH weights (metric rows x weight cols) ----
 lev <- c("PSNR","SSIM","FSIM","LPIPS")
-long$metric  <- factor(labs4[long$metric],  levels=labs4[lev])
-bestl$metric <- factor(labs4[bestl$metric], levels=labs4[lev])
-p_marg <- ggplot(long, aes(lambda_ssim, value)) +
-  geom_smooth(method="loess", span=1.0, se=TRUE, colour="#1f4e79", fill="#4c72b0",
-              alpha=0.18, linewidth=0.9) +
-  geom_point(size=2.1, colour="#444444") +
-  geom_point(data=bestl, size=3.4, shape=21, fill="#e4572e", colour="black", stroke=0.6) +
-  facet_wrap(~metric, scales="free_y", nrow=1) +
-  labs(x=expression(lambda[SSIM]), y="test-set metric (mean over 624 images)") +
-  theme_minimal(base_size=10.5) +
-  theme(strip.text=element_text(face="bold", size=9),
+mklong <- function(df) df |>
+  pivot_longer(c(PSNR,SSIM,FSIM,LPIPS), names_to="metric", values_to="mval") |>
+  pivot_longer(c(lambda_ssim, lambda_ffl), names_to="weight", values_to="wval") |>
+  mutate(metric=factor(metric, levels=lev),
+         weight=factor(ifelse(weight=="lambda_ssim","lambda[SSIM]","lambda[FFL]"),
+                       levels=c("lambda[SSIM]","lambda[FFL]")))
+long <- mklong(agg); bestl <- mklong(best)
+p_marg <- ggplot(long, aes(wval, mval)) +
+  geom_smooth(method="loess", span=1.1, se=TRUE, colour="#1f4e79", fill="#4c72b0",
+              alpha=0.18, linewidth=0.8) +
+  geom_point(size=1.7, colour="#444444") +
+  geom_point(data=bestl, size=3.0, shape=21, fill="#e4572e", colour="black", stroke=0.5) +
+  facet_grid(metric ~ weight, scales="free", switch="y", labeller=label_parsed) +
+  labs(x="loss-weight value", y="test-set metric (mean over 624 images); PSNR/SSIM/FSIM up, LPIPS down") +
+  theme_minimal(base_size=10) +
+  theme(strip.text=element_text(face="bold", size=9.5),
         strip.background=element_rect(fill="grey92", colour=NA),
+        strip.placement="outside",
         panel.border=element_rect(colour="grey65", fill=NA, linewidth=0.5),
         panel.grid.minor=element_blank())
 
@@ -55,5 +57,5 @@ p_surf <- ggplot(agg, aes(lambda_ssim, lambda_ffl)) +
 
 p <- p_marg / p_surf + plot_layout(heights=c(1, 1.05))
 dir.create(dirname(out), showWarnings=FALSE, recursive=TRUE)
-ggsave(out, p, width=9.2, height=7.4)
+ggsave(out, p, width=9.0, height=9.4)
 cat("saved", out, "\n")
