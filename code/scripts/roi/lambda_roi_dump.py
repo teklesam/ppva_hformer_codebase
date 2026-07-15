@@ -25,20 +25,32 @@ def build_arm_d():
         window_size=cfg.model.window_size, use_vae=cfg.model.use_vae,
         activation=getattr(cfg.model,"activation","gelu"))
 
+import piq
+_lpips = piq.LPIPS(reduction="none").to(G.DEVICE)
 clean = G.load_image(CASE_CLS, CASE_IDX)
 noisy = G.add_noise(clean, ETA, seed=42)
 noisy_t = torch.from_numpy(noisy).float().unsqueeze(0)
+_y = torch.from_numpy(clean)[None,None].float().to(G.DEVICE)
+def perc(img):  # FSIM + LPIPS of img vs clean, on the piq scale (matches the thesis)
+    o = torch.from_numpy(np.clip(img,0,1).astype(np.float32))[None,None].to(G.DEVICE)
+    fs = piq.fsim(o,_y,data_range=1.0,chromatic=False).item()
+    lp = _lpips(o.repeat(1,3,1,1), _y.repeat(1,3,1,1)).item()
+    return fs, lp
+nf, nl = perc(noisy)
 print(f"case {CASE_CLS}/{CASE_IDX}  noisy PSNR={G.psnr(clean,noisy):.2f}  device={G.DEVICE}", flush=True)
-recons, labels, psnrs = [], [], []
+recons, labels, psnrs, fsims, lpipss = [], [], [], [], []
 for tr,ss,ff,vp in TRIALS:
     ckpt = os.path.join(SWEEP, f"trial_{tr:03d}", "best_model.pth")
     m = build_arm_d(); m.load_state_dict(G._load_ckpt(ckpt)); m.to(G.DEVICE).eval()
     recon,_ = G.infer(m, noisy_t, "arm_d")
+    fs, lp = perc(recon)
     recons.append(recon.astype(np.float32)); labels.append(f"ssim={ss:.2f} ffl={ff:.3f}")
-    psnrs.append(G.psnr(clean, recon))
-    print(f"  trial {tr:2d}: ssim={ss:.3f} ffl={ff:.3f} PSNR={psnrs[-1]:.3f}", flush=True)
+    psnrs.append(G.psnr(clean, recon)); fsims.append(fs); lpipss.append(lp)
+    print(f"  trial {tr:2d}: ssim={ss:.3f} ffl={ff:.3f} PSNR={psnrs[-1]:.3f} FSIM={fs:.3f} LPIPS={lp:.3f}", flush=True)
 np.savez_compressed(OUT, clean=clean, noisy=noisy, recons=np.stack(recons),
     labels=np.array(labels), psnrs=np.array(psnrs,dtype=np.float32),
+    fsims=np.array(fsims,dtype=np.float32), lpipss=np.array(lpipss,dtype=np.float32),
+    noisy_psnr=np.float32(G.psnr(clean,noisy)), noisy_fsim=np.float32(nf), noisy_lpips=np.float32(nl),
     trials=np.array([t[0] for t in TRIALS]), ssim=np.array([t[1] for t in TRIALS]),
     ffl=np.array([t[2] for t in TRIALS]), sweep_psnr=np.array([t[3] for t in TRIALS],dtype=np.float32))
 print("wrote", OUT, flush=True)
