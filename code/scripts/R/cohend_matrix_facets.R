@@ -11,11 +11,12 @@ out      <- getarg("--out","cohend_matrix_facets.pdf")
 
 ord <- c("arm_a_l2","arm_i_l1","arm_j_l1_ssim_ffl","arm_k_nll_l1","arm_b_nll","arm_c_nll_ssim",
  "arm_d_nll_ssim_ffl","arm_l_nll_edge_ffl","arm_n_perc","arm_m_full_det","arm_e_ppvae",
- "arm_f_kl_cyc","arm_g_kl_fb","arm_h_kl_cyc_fb","arm_p_best","arm_o_prelu","dncnn_baseline","ffdnet","ircnn","drunet","swinir")
+ "arm_f_kl_cyc","arm_g_kl_fb","arm_h_kl_cyc_fb","arm_p_best","arm_o_prelu","dncnn_baseline","ffdnet","ircnn","drunet","swinir","nafnet","scunet","sharpxr")
 lab <- c(arm_a_l2="A",arm_i_l1="I",arm_j_l1_ssim_ffl="J",arm_k_nll_l1="K",arm_b_nll="B",arm_c_nll_ssim="C",
  arm_d_nll_ssim_ffl="D",arm_l_nll_edge_ffl="L",arm_n_perc="N",arm_m_full_det="M",arm_e_ppvae="E",
  arm_f_kl_cyc="F",arm_g_kl_fb="G",arm_h_kl_cyc_fb="H",arm_p_best="P",arm_o_prelu="O",
- dncnn_baseline="DnCNN",ffdnet="FFDNet",ircnn="IRCNN",drunet="DRUNet",swinir="SwinIR")
+ dncnn_baseline="DnCNN",ffdnet="FFDNet",ircnn="IRCNN",drunet="DRUNet",swinir="SwinIR",
+ nafnet="NAFNet",scunet="SCUNet",sharpxr="SharpXR")
 labs <- unname(lab[ord]); idx <- setNames(seq_along(ord), ord)
 
 met <- read_csv(met_csv, show_col_types=FALSE) |> select(metric, arm1, arm2, cohens_d, sig)

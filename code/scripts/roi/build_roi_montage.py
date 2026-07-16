@@ -40,7 +40,7 @@ def main():
     col_imgs = [noisy, clean] + [recons[i] for i in range(len(labels))]
     col_labs = ["Noisy", "Reference"] + [short(l) for l in labels]
     ncol, nroi = len(col_imgs), len(ROIS)
-    narm = len(labels); half = narm // 2
+    narm = len(labels); half = (narm + 1) // 2   # ceil: block A is the wider one, grid fits both
     groups = [[0, 1] + list(range(2, 2 + half)), [0, 1] + list(range(2 + half, ncol))]
     GROUP = 2 + half
     nblk = len(groups)
@@ -68,7 +68,7 @@ def main():
                  transform=axL.transAxes, va="top")
         axL.text(0.10, 0.90 - i*0.19, desc, color="#222222", fontsize=11.5,
                  transform=axL.transAxes, va="top")
-    axL.text(0.02, 0.05, "Two blocks; each begins with Noisy + Reference, then twelve arms. "
+    axL.text(0.02, 0.05, "Two blocks; each begins with Noisy + Reference, then half of the conditions. "
              "Arrows mark the feature; compare each arm against the Reference.",
              fontsize=8.5, style="italic", color="#444444", transform=axL.transAxes, va="bottom")
 
