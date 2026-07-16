@@ -15,7 +15,7 @@ fam <- tribble(~arm,~lab,~family,
  "arm_e_ppvae","E","VAE","arm_f_kl_cyc","F","VAE","arm_g_kl_fb","G","VAE","arm_h_kl_cyc_fb","H","VAE","arm_p_best","P","VAE",
  "arm_r_ft_j","R","Fine-tune","arm_s_ft_d","S","Fine-tune",
  "dncnn_baseline","DnCNN","Baselines","ircnn","IRCNN","Baselines","ffdnet","FFDNet","Baselines",
- "drunet","DRUNet","Baselines","swinir","SwinIR","Baselines","nafnet","NAFNet","Baselines","scunet","SCUNet","Baselines")
+ "drunet","DRUNet","Baselines","swinir","SwinIR","Baselines","nafnet","NAFNet","Baselines","scunet","SCUNet","Baselines","sharpxr","SharpXR","Baselines")
 
 read_one <- function(arm){
   f <- file.path(base,arm,"train_log.csv"); if(!file.exists(f)) f<-file.path(base,"baselines",arm,"train_log.csv")
@@ -44,7 +44,7 @@ p <- ggplot(L, aes(epoch,y,color=lab,group=arm)) +
     seed=1, show.legend=FALSE) +
   facet_grid(metric~family, scales="free_y", switch="y") +
   scale_x_continuous(expand=expansion(mult=c(0.02,0.22))) +
-  labs(x="epoch", y=NULL, title="Training convergence by loss / architecture family",
+  labs(x="epoch", y=NULL,
        caption="Per-arm curves; validation sampled every 5 epochs. Well-trained arms plateau (converged); Arm E (VAE posterior collapse) settles to a low ceiling and Arm O (PReLU) diverges.") +
   guides(color="none") +
   theme_minimal(base_size=9) +
