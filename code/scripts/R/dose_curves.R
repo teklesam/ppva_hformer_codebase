@@ -9,7 +9,7 @@ csv <- getarg("--csv", "results/per_image_metrics.csv")
 out <- getarg("--out", "dose_curves.pdf")
 
 lab <- c(arm_a_l2 = "A (L2)", arm_d_nll_ssim_ffl = "D (NLL+SSIM+FFL)", arm_h_kl_cyc_fb = "H (PP-VAE)",
-         arm_o_prelu = "O (PReLU)", swinir = "SwinIR")
+         arm_o_prelu = "O (PReLU)", scunet = "SCUNet", swinir = "SwinIR")
 key <- names(lab)
 
 agg <- read_csv(csv, show_col_types = FALSE) |>
@@ -24,10 +24,9 @@ p <- ggplot(agg, aes(noise, m, group = arm)) +
   geom_line(data = filter(agg, keyarm), aes(color = Arm), linewidth = 1.1) +
   geom_point(data = filter(agg, keyarm), aes(color = Arm), size = 2.2) +
   scale_color_brewer(palette = "Set1") + scale_fill_brewer(palette = "Set1") +
-  labs(x = "noise severity preset", y = "PSNR (dB)", color = "key arm", fill = "key arm",
-       title = "Reconstruction quality across dose (noise) levels",
-       caption = "grey = the remaining arms; ribbons = 95% CI of the mean") +
-  theme_minimal(base_size = 11) + theme(plot.title = element_text(face = "bold"))
+  labs(x = "noise severity preset", y = "PSNR (dB)", color = "highlighted", fill = "highlighted",
+       caption = "grey = the remaining conditions; ribbons = 95% CI of the mean") +
+  theme_minimal(base_size = 11)
 
 dir.create(dirname(out), showWarnings = FALSE, recursive = TRUE)
 ggsave(out, p, width = 8, height = 5.4)
