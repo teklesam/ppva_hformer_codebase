@@ -119,7 +119,7 @@ for ax,met in zip(axes.ravel(),["psnr","ssim","fsim","lpips"]):
 import matplotlib.patches as mpatches
 cats=["large (row worse)","moderate","small","negligible","small","moderate","large (row better)"]
 handles=[mpatches.Patch(facecolor=colors[k],edgecolor="0.5",label=cats[k]) for k in range(7)]
-fig.subplots_adjust(left=0.05,right=0.82,top=0.97,bottom=0.03,wspace=0.02,hspace=0.10)
+fig.subplots_adjust(left=0.05,right=0.82,top=0.97,bottom=0.05,wspace=0.18,hspace=0.12)
 fig.legend(handles=handles,title="Effect size (Cohen's $d$, row $-$ col)",loc="center left",
            bbox_to_anchor=(0.835,0.5),fontsize=9.5,title_fontsize=10,frameon=True)
 OUT="figures/R/cohend_matrix_facets"
