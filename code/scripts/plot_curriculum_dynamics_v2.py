@@ -79,19 +79,22 @@ ax1.set_xticklabels([]); ax1.grid(True, alpha=0.25, lw=0.5); ax1.set_axisbelow(T
 ax2.axvspan(0, 200, color=BG1); ax2.axvspan(200, 300, color=BG2)
 ax2.axvline(200, color=CSHIFT, ls="--", lw=1.6, zorder=2)
 ax2.set_yscale("log")
-lnA, = ax2.plot(epAl, lA, color=CA, lw=1.8, label=r"Arm A: $\mathcal{L}_2$ (MSE)", zorder=3)
-lnR, = ax2.plot(epRl, lR, color=CR, lw=1.8, ls="--", label=r"Arm R: $\mathcal{L}_1$+SSIM+FFL", zorder=3)
+# Only the two arms whose losses sit on a meaningful axis: Arm A's MSE (Stage 1,
+# left axis) and Arm S's NLL (Stage 2, right axis). Arm R (L1+SSIM+FFL) has no NLL
+# head and its composite loss is not on a comparable scale, so it is omitted here
+# and shown only in the top validation panel.
+lnA, = ax2.plot(epAl, lA, color=CA, lw=1.8, label=r"Arm A: $\mathcal{L}_2$ MSE (left axis)", zorder=3)
 ax2.set_ylabel("Loss (log scale)"); ax2.set_xlim(0, 300)
 ax2.set_xlabel("Training epoch")
 ax2.grid(True, which="major", alpha=0.25, lw=0.5); ax2.set_axisbelow(True)
 
 ax2r = ax2.twinx()   # NLL on its own axis; more negative (better) is higher
 lnS, = ax2r.plot(epSl, lS, color=CS, lw=2.0, ls="--",
-                 label="Arm S: NLL+SSIM+FFL (right axis)", zorder=3)
+                 label="Arm S: NLL (right axis)", zorder=3)
 ax2r.set_ylim(0.3, -4.3)
 ax2r.set_ylabel("NLL loss (nats/px)", color=CS)
 ax2r.tick_params(axis="y", colors=CS)
-ax2.legend(handles=[lnA, lnR, lnS], loc="upper right", fontsize=8.5, framealpha=0.9)
+ax2.legend(handles=[lnA, lnS], loc="lower right", fontsize=8.5, framealpha=0.9)
 
 OUT = ("/Users/sam/Documents/PPVAE Dissertation Project/PpCNN/dissertation-latex/"
        "dissertation-latex/figures/evaluation_v2/curriculum_loss_dynamics.pdf")
