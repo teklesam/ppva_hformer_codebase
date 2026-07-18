@@ -79,6 +79,10 @@ print(f"VALIDATION vs CSV (ssim/fsim/lpips): n={len(errs)} mean|Δ|d|={np.mean(e
 N=len(ORDER)
 mats={m:np.full((N,N),np.nan) for m in HIGHER}
 sigs={m:np.zeros((N,N),bool) for m in HIGHER}
+for i,row in enumerate(ORDER):
+    for j,col in enumerate(ORDER):
+        if i>j:  # lower triangle
+            d,sg=cohen_wrap=cohen(list(HIGHER)[0],row,col) if False else (None,None)
 for met in HIGHER:
     for i,row in enumerate(ORDER):
         for j,col in enumerate(ORDER):
@@ -103,6 +107,12 @@ for ax,met in zip(axes.ravel(),["psnr","ssim","fsim","lpips"]):
     ax.set_xticks(range(N)); ax.set_yticks(range(N))
     ax.set_xticklabels([LAB[c] for c in ORDER],rotation=90,fontsize=6.5)
     ax.set_yticklabels([LAB[c] for c in ORDER],fontsize=6.5)
+    # gridlines separating every cell (aid tracing a box to its row/column labels)
+    ax.set_xticks(np.arange(-0.5,N,1),minor=True); ax.set_yticks(np.arange(-0.5,N,1),minor=True)
+    ax.grid(which="minor",color="0.78",linewidth=0.5)
+    ax.set_axisbelow(False)                 # draw grid above the cells
+    ax.tick_params(which="minor",length=0)
+    ax.tick_params(which="major",length=0)
     ax.set_title(TITLES[met],fontsize=12,fontweight="bold"); ax.set_xlim(-0.5,N-1.5); ax.set_ylim(N-0.5,0.5)
     for s in ax.spines.values(): s.set_visible(False)
 # shared legend
