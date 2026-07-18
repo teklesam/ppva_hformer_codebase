@@ -1,7 +1,8 @@
 # PP-VAE-Hformer: Pathology-Preserving Variational Autoencoder for Paediatric Chest X-Ray Denoising
 
 **MPhil Dissertation — University of Cambridge**  
-**Samuel Tekle | Department of Applied Mathematics and Theoretical Physics / MRC Biostatistics Unit**
+**Samuel Tekle | Department of Primary Care and Public Health -- MRC Biostatistics Unit**
+
 
 ---
 
