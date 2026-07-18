@@ -92,7 +92,7 @@ colors=["#2166AC","#67A9CF","#D1E5F0","#F7F7F7","#FDDBC7","#EF8A62","#B2182B"]
 cmap=ListedColormap(colors); norm=BoundaryNorm(bounds,cmap.N)
 
 TITLES={"psnr":"PSNR","ssim":"SSIM","fsim":"FSIM","lpips":"LPIPS (lower better; sign-flipped)"}
-fig,axes=plt.subplots(2,2,figsize=(15.5,15))
+fig,axes=plt.subplots(2,2,figsize=(16.5,15))
 for ax,met in zip(axes.ravel(),["psnr","ssim","fsim","lpips"]):
     M=np.ma.masked_invalid(mats[met])
     ax.imshow(M,cmap=cmap,norm=norm,aspect="equal")
@@ -109,9 +109,9 @@ for ax,met in zip(axes.ravel(),["psnr","ssim","fsim","lpips"]):
 import matplotlib.patches as mpatches
 cats=["large (row worse)","moderate","small","negligible","small","moderate","large (row better)"]
 handles=[mpatches.Patch(facecolor=colors[k],edgecolor="0.5",label=cats[k]) for k in range(7)]
-fig.legend(handles=handles,title="Effect size (Cohen's $d$, row $-$ col)",loc="center right",
-           bbox_to_anchor=(1.005,0.5),fontsize=9,title_fontsize=10,frameon=True)
-fig.tight_layout(rect=[0,0,0.9,1])
+fig.subplots_adjust(left=0.05,right=0.82,top=0.97,bottom=0.03,wspace=0.02,hspace=0.10)
+fig.legend(handles=handles,title="Effect size (Cohen's $d$, row $-$ col)",loc="center left",
+           bbox_to_anchor=(0.835,0.5),fontsize=9.5,title_fontsize=10,frameon=True)
 OUT="figures/R/cohend_matrix_facets"
 fig.savefig(OUT+".pdf",bbox_inches="tight"); fig.savefig(OUT+".png",dpi=130,bbox_inches="tight")
 print("wrote",OUT)
